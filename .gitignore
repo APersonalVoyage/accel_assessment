@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Credentials / secrets — never commit these
+pipeline/.env
+.env
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# AI tool artifacts
+.claude/
+memory/
+MEMORY.md
+
+# Assignment brief
+Requirements.md

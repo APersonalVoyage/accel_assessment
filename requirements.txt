@@ -1,0 +1,11 @@
+# Core pipeline
+requests>=2.31.0
+snowflake-connector-python>=3.6.0
+
+# Scheduler
+APScheduler>=3.10.0
+
+# Dev / testing
+python-dotenv>=1.0.0   # load .env in development
+pytest>=8.0.0
+responses>=0.25.0      # mock HTTP in tests
