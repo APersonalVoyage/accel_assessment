@@ -78,6 +78,7 @@ class IowaLiquorPipeline:
             logger.info("Pipeline run starting: %s → %s", since_date, until_date)
 
             for batch in self.extractor.fetch_incremental(since_date, until_date):
+                self._check_batch(batch, since_date, until_date)
                 count = self.loader.upsert_batch(batch)
                 total_records += count
 
@@ -102,6 +103,29 @@ class IowaLiquorPipeline:
 
         finally:
             self.loader.close()
+
+    def _check_batch(self, batch: list[dict], since_date: date, until_date: date):
+        # Reject the batch if any record is missing its primary key — a null
+        # invoice number would cause the MERGE to fail or silently drop the row.
+        missing_pk = [r for r in batch if not r.get("invoice_line_no")]
+        if missing_pk:
+            raise ValueError(
+                f"{len(missing_pk)} of {len(batch)} records are missing invoice_line_no"
+            )
+
+        # Warn if the API returned records outside the date window we asked for.
+        # This shouldn't happen with correct $where filtering but is worth knowing about.
+        since_str = str(since_date)
+        until_str = str(until_date)
+        out_of_range = [
+            r for r in batch
+            if r.get("date", "")[:10] < since_str or r.get("date", "")[:10] > until_str
+        ]
+        if out_of_range:
+            logger.warning(
+                "%d records are outside the requested date window (%s → %s)",
+                len(out_of_range), since_date, until_date,
+            )
 
     def backfill(self, start: date, end: date):
         """Re-load a historical date range. Safe to re-run — MERGE prevents duplicates."""
