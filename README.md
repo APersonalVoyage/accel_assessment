@@ -33,7 +33,6 @@ Automated daily ingestion of Iowa Liquor Sales data from the Socrata public API 
 
 - Python 3.11+
 - A Snowflake account with a warehouse and a user that has `CREATE DATABASE` privileges
-- (Optional) A [Socrata app token](https://data.iowa.gov/profile/app_tokens) — strongly recommended to avoid throttling
 
 ### 2. Install dependencies
 
@@ -100,9 +99,6 @@ python -m pipeline.run --since 2019-01-01 --until 2019-01-07
 python -m pipeline.scheduler
 ```
 
-Runs the pipeline daily at **06:00 UTC**, picking up the previous day's records via watermark.
-
----
 
 ## How Incremental Loads Work
 
@@ -140,7 +136,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full discussion. Short version:
 | Area | Change |
 |---|---|
 | Orchestration | Airflow — adds a DAG UI, per-task logs, retry configuration, and easier backfills. `IowaLiquorPipeline.run()` drops straight into a `PythonOperator`. |
-| Auth | Snowflake key-pair authentication + secrets in AWS SSM or Vault instead of a password in `.env`. |
+| Auth | Snowflake key-pair authentication + secrets in AWS SSM instead of a password in `.env`. |
 | Bulk loading | For backfills >1M rows, use Snowflake internal stage + `COPY INTO` — significantly faster than `executemany`. |
 | Schema evolution | Pre-run schema diff: auto-add nullable columns, alert and halt on renames or type changes. |
 | Data quality | dbt tests on row counts, null rates, and value ranges after each load. |
@@ -160,7 +156,3 @@ on retries. MERGE is slightly more expensive but means re-running any date range
 **APScheduler vs. Airflow** — APScheduler needs no extra infrastructure for a single daily
 job. Airflow makes sense once you have multiple interdependent pipelines, need a backfill UI,
 or want SLA alerts without writing custom code.
-
-**`$offset` pagination** — Socrata's SODA 2.0 only supports offset-based pagination. This is
-fine here because we sort deterministically over a bounded date window, so pages are stable.
-For open-ended streaming a cursor on `updated_at` would be preferable.
