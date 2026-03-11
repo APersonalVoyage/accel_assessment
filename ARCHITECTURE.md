@@ -61,15 +61,6 @@ which is much faster for bulk loads. More on this in the production section.
 
 ---
 
-## Pagination
-
-The Socrata API paginates with `$limit` + `$offset`. Without a sort order, rows can
-shift between pages if new records arrive mid-fetch — causing skips or duplicates.
-
-We use ORDER BY date ASC, invoice_line_no ASC to keep pages stable across requests.
-
----
-
 ## Scheduling
 
 The pipeline runs at 06:00 UTC daily. Iowa's portal typically finishes writing the
