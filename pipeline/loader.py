@@ -1,5 +1,5 @@
 """
-Handles all Snowflake writes for the Iowa Liquor Sales pipeline.
+Handles all Snowflake operations for the pipeline: creating tables, loading data, and tracking watermarks.
 
 The main pattern here is stage-then-merge: we bulk-insert each page into a
 temporary table, then run a single MERGE statement against the target. This
@@ -65,6 +65,30 @@ CREATE TABLE IF NOT EXISTS {db}.{schema}.PIPELINE_WATERMARKS (
     records_loaded   NUMBER(10,0),
     PRIMARY KEY (pipeline_name)
 )
+"""
+
+_DDL_VIEW_DAILY_SALES = """
+CREATE OR REPLACE VIEW {db}.{schema}.V_DAILY_SALES AS
+SELECT
+    sale_date,
+    SUM(sale_dollars)       AS total_sale_dollars,
+    SUM(bottles_sold)       AS total_bottles_sold,
+    SUM(volume_sold_liters) AS total_volume_liters,
+    COUNT(*)                AS transaction_count
+FROM {db}.{schema}.LIQUOR_SALES
+GROUP BY 1
+ORDER BY 1 DESC
+"""
+
+_DDL_VIEW_TOP_CATEGORIES = """
+CREATE OR REPLACE VIEW {db}.{schema}.V_TOP_CATEGORIES AS
+SELECT
+    category_name,
+    SUM(sale_dollars) AS total_sale_dollars,
+    SUM(bottles_sold) AS total_bottles_sold
+FROM {db}.{schema}.LIQUOR_SALES
+GROUP BY 1
+ORDER BY 2 DESC
 """
 
 _MERGE_SQL = """
@@ -156,7 +180,9 @@ class SnowflakeLoader:
             cur.execute(_DDL_SCHEMA.format(db=sf.database, schema=sf.schema))
             cur.execute(_DDL_LIQUOR_SALES.format(db=sf.database, schema=sf.schema))
             cur.execute(_DDL_WATERMARKS.format(db=sf.database, schema=sf.schema))
-        logger.info("Snowflake tables are ready")
+            cur.execute(_DDL_VIEW_DAILY_SALES.format(db=sf.database, schema=sf.schema))
+            cur.execute(_DDL_VIEW_TOP_CATEGORIES.format(db=sf.database, schema=sf.schema))
+        logger.info("Snowflake tables and views are ready")
 
     def get_watermark(self, pipeline_name: str) -> Optional[date]:
         """Return the last successfully loaded date, or None if this is a first run."""
